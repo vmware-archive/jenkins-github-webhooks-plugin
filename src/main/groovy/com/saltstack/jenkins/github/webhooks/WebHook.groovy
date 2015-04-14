@@ -3,6 +3,8 @@ package com.saltstack.jenkins.github.webhooks;
 import hudson.Extension;
 import hudson.ExtensionPoint;
 import hudson.model.AbstractProject;
+import hudson.model.Hudson;
+import hudson.model.RootAction;
 import hudson.model.UnprotectedRootAction;
 import hudson.security.csrf.CrumbExclusion;
 import hudson.triggers.Trigger;
@@ -32,7 +34,7 @@ import com.saltstack.jenkins.github.webhooks.Payload;
 public class WebHook implements UnprotectedRootAction {
 
     private static final Logger LOGGER = Logger.getLogger(WebHook.class.getName());
-    public static final URLNAME = "github-webhook-payloads";
+    public static final URLNAME = "github-webhook-ext";
 
     public String getIconFileName() {
         return null;
@@ -116,6 +118,10 @@ public class WebHook implements UnprotectedRootAction {
             LOGGER.warning("Malformed repo url "+repoUrl);
         }
 
+    }
+
+    public static WebHook get() {
+        return Hudson.getInstance().getExtensionList(RootAction.class).get(WebHook.class);
     }
 
     @Extension

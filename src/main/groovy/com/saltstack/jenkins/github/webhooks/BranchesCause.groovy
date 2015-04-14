@@ -1,6 +1,11 @@
 package com.saltstack.jenkins.github.webhooks;
 
+import hudson.Extension;
+import hudson.Functions;
+import hudson.model.Cause;
 import hudson.model.Cause.UserIdCause;
+import org.jenkinsci.plugins.buildtriggerbadge.provider.BuildTriggerBadgeProvider;
+
 
 public class BranchesCause extends UserIdCause {
     /**
@@ -25,6 +30,17 @@ public class BranchesCause extends UserIdCause {
 
     @Override
     public String getShortDescription() {
-        return "Started by GitHub webhook triggered by " + getUserName();
+        return "Started by GitHub branches create/delete webhook triggered by " + getUserName();
+    }
+
+    @Extension
+    public static class BranchesCauseBadgeProvider extends BuildTriggerBadgeProvider {
+        @Override
+        public String provideIcon(Cause cause) {
+            if (cause instanceof BranchesCause) {
+                return hudson.Functions.getResourcePath() + '/plugin/buildtriggerbadge/images/github-push-cause.png';
+            }
+            return null;
+        }
     }
 }

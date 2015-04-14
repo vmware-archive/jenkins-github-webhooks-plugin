@@ -26,6 +26,7 @@ import jenkins.model.Jenkins;
 import net.sf.json.JSONObject;
 
 import com.cloudbees.jenkins.GitHubTrigger;
+import com.cloudbees.jenkins.GitHubPushTrigger;
 import com.cloudbees.jenkins.GitHubRepositoryName;
 import com.cloudbees.jenkins.GitHubRepositoryNameContributor;
 import org.kohsuke.github.GHHook;
@@ -60,17 +61,13 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
      * Called when a POST is made.
      */
     public void onPost(String payload) {
-        getDescriptor().queue.execute(new Runnable() {
-            public void run() {
-                String name = " #"+job.getNextBuildNumber();
-                BranchesCause cause = new BranchesCause(payload.getSender())
-                if (job.scheduleBuild(cause)) {
-                    LOGGER.info("SCM branch changes detected in "+ job.getName()+". Triggering "+name);
-                } else {
-                    LOGGER.info("SCM branch changes detected in "+ job.getName()+". Job is already in the queue");
-                }
-            }
-        });
+        String name = " #"+job.getNextBuildNumber();
+        BranchesCause cause = new BranchesCause(payload.getSender())
+        if (job.scheduleBuild(cause)) {
+            LOGGER.info("SCM branch changes detected in "+ job.getName()+". Triggering "+name);
+        } else {
+            LOGGER.info("SCM branch changes detected in "+ job.getName()+". Job is already in the queue");
+        }
     }
 
     /**
@@ -84,8 +81,16 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
     @Override
     public void start(AbstractProject<?,?> project, boolean newInstance) {
         super.start(project, newInstance);
-        if (newInstance ) {
+        //if (newInstance && GitHubPushTrigger.getDescriptor().isManagedHook() ) {
+        if ( newInstance && Trigger.all().get(GitHubPushTrigger.DescriptorImpl.class).isManageHook() ) {
             registerHooks();
+        }
+        else if ( newInstance ) {
+            LOGGER.log(
+                Level.WARNING,
+                "The GitHub-Plugin is not managing the webhooks. Manual configuration of the " +
+                "hook URL in the GitHub UI is required"
+            )
         }
     }
 
@@ -98,23 +103,19 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
         // make sure we have hooks installed. do this lazily to avoid blocking the UI thread.
         final Collection<GitHubRepositoryName> names = GitHubRepositoryNameContributor.parseAssociatedNames(job);
 
-        getDescriptor().queue.execute(new Runnable() {
-            public void run() {
-                LOGGER.log(Level.INFO, "Adding GitHub branch webhooks for {0}", names);
+        LOGGER.log(Level.INFO, "Adding GitHub branch webhooks for {0}", names);
 
-                for (GitHubRepositoryName name : names) {
-                    for (GHRepository repo : name.resolve()) {
-                        try {
-                            if(createJenkinsHook(repo, getDescriptor().getHookUrl())) {
-                                break;
-                            }
-                        } catch (Throwable e) {
-                            LOGGER.log(Level.WARNING, "Failed to add GitHub branch webhook for "+name, e);
-                        }
+        for (GitHubRepositoryName name : names) {
+            for (GHRepository repo : name.resolve()) {
+                try {
+                    if(createJenkinsHook(repo, new URL(Hudson.getInstance().getRootUrl()+WebHook.get().getUrlName()+'/'))) {
+                        break;
                     }
+                } catch (Throwable e) {
+                    LOGGER.log(Level.WARNING, "Failed to add GitHub branch webhook for "+name, e);
                 }
             }
-        });
+        }
     }
 
     private boolean createJenkinsHook(GHRepository repo, URL url) {
@@ -128,6 +129,9 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
             return true;
         } catch (IOException e) {
             throw new GHException("Failed to update jenkins hooks", e);
+        } catch (Throwable e) {
+            LOGGER.log(Level.SEVERE, "Failed to update jenkins hooks", e)
+            return false;
         }
     }
 
@@ -137,11 +141,6 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
         if (cleaner != null) {
             cleaner.onStop(job);
         }
-    }
-
-    @Override
-    public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl) super.getDescriptor();
     }
 
     @Extension
@@ -167,7 +166,7 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
          * Returns the URL that GitHub should post.
          */
         public URL getHookUrl() throws MalformedURLException {
-            return new URL(Hudson.getInstance().getRootUrl()+WebHook.get().getUrlName()+'/');
+            return hookUrl!=null ? new URL(hookUrl) : new URL(Hudson.getInstance().getRootUrl()+WebHook.get().getUrlName()+'/');
         }
 
         public FormValidation doReRegister() {
