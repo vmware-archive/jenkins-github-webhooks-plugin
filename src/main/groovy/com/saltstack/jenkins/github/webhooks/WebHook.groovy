@@ -6,6 +6,7 @@ import hudson.model.AbstractProject;
 import hudson.model.Hudson;
 import hudson.model.RootAction;
 import hudson.model.UnprotectedRootAction;
+import hudson.security.ACL;
 import hudson.security.csrf.CrumbExclusion;
 import hudson.triggers.Trigger;
 import jenkins.model.Jenkins;
@@ -84,13 +85,13 @@ public class WebHook implements UnprotectedRootAction {
     private static final Pattern REPOSITORY_NAME_PATTERN = Pattern.compile("https?://([^/]+)/([^/]+)/([^/]+)");
 
     public void processPayload(Payload payload, Class<? extends Trigger<?>> triggerClass) {
-        LOGGER.info("Received POST for "+payload.getRepository());
+        LOGGER.info("Received POST for "+payload.getRepositoryURL());
         LOGGER.fine("Full details of the POST was "+payload.getPayload());
-        Matcher matcher = REPOSITORY_NAME_PATTERN.matcher(payload.getRepository());
+        Matcher matcher = REPOSITORY_NAME_PATTERN.matcher(payload.getRepositoryURL());
         if (matcher.matches()) {
-            GitHubRepositoryName changedRepository = GitHubRepositoryName.create(payload.getRepository());
+            GitHubRepositoryName changedRepository = GitHubRepositoryName.create(payload.getRepositoryURL());
             if (changedRepository == null) {
-                LOGGER.warning("Malformed repo url "+repoUrl);
+                LOGGER.warning("Malformed repo url ${payload.getRepositoryURL()}");
                 return;
             }
 
@@ -115,7 +116,7 @@ public class WebHook implements UnprotectedRootAction {
                 SecurityContextHolder.getContext().setAuthentication(old);
             }
         } else {
-            LOGGER.warning("Malformed repo url "+repoUrl);
+            LOGGER.warning("Matcher did not match. Malformed repo url ${payload.getRepositoryURL()}");
         }
 
     }

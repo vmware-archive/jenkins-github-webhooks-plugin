@@ -14,6 +14,7 @@ public class Payload {
     private json;
     private payload;
     private repository;
+    private repository_url;
     private sender;
 
     /**
@@ -27,6 +28,7 @@ public class Payload {
         this.event = event;
         this.sender = this.json.sender.login
         this.repository = this.json.repository.full_name
+        this.repository_url = this.json.repository.html_url
     }
 
     /**
@@ -62,6 +64,10 @@ public class Payload {
      */
     public getRepository() {
         return this.repository
+    }
+
+    public getRepositoryURL() {
+        return this.repository_url
     }
 
     public String toString() {
