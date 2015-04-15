@@ -28,7 +28,7 @@ import java.text.SimpleDateFormat
 
 group = "com.saltstack"
 version = new SimpleDateFormat("yyyy.MM.dd").format(new Date()).toString()
-description = "SaltStack DSL Projects Helper Classes"
+description = "Jenkins GitHub WebHooks Plugin"
 
 jenkinsPlugin {
     coreVersion = '1.596.1'
