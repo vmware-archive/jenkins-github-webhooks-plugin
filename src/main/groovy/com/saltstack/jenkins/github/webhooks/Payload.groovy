@@ -59,6 +59,10 @@ public class Payload {
         return this.sender
     }
 
+    public getSenderDetails() {
+        return this.json.sender
+    }
+
     /**
      * Get the repository triggering the payload
      */

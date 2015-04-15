@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import com.cloudbees.jenkins.GitHubTrigger;
 import com.cloudbees.jenkins.GitHubRepositoryName;
+import com.cloudbees.jenkins.GitHubRepositoryNameContributor;
 
 import com.saltstack.jenkins.github.webhooks.Payload;
 
@@ -80,13 +81,20 @@ public class WebHook implements UnprotectedRootAction {
         if ( eventType == 'create' || eventType == 'delete' ) {
             processPayload(payload, BranchesTrigger.class);
         }
+
+        if ( eventType == 'pull_request' ) {
+            def pull_request_action = payload.getJSON().action
+            if ( pull_request_action == 'opened' || pull_request_action == 'reopened' || pull_request_action == 'closed' ) {
+                processPayload(payload, PullRequestsTrigger.class);
+            }
+        }
     }
 
     private static final Pattern REPOSITORY_NAME_PATTERN = Pattern.compile("https?://([^/]+)/([^/]+)/([^/]+)");
 
     public void processPayload(Payload payload, Class<? extends Trigger<?>> triggerClass) {
-        LOGGER.info("Received POST for "+payload.getRepositoryURL());
-        LOGGER.fine("Full details of the POST was "+payload.getPayload());
+        LOGGER.info("Received POST for ${payload.getRepositoryURL()}");
+        LOGGER.fine("Full details of the POST was ${payload.getPayload()}");
         Matcher matcher = REPOSITORY_NAME_PATTERN.matcher(payload.getRepositoryURL());
         if (matcher.matches()) {
             GitHubRepositoryName changedRepository = GitHubRepositoryName.create(payload.getRepositoryURL());

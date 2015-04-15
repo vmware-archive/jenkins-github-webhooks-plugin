@@ -38,19 +38,19 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import com.saltstack.jenkins.github.webhooks.Payload;
-import com.saltstack.jenkins.github.webhooks.BranchesCause;
+import com.saltstack.jenkins.github.webhooks.PullRequestsCause;
 
 /**
  * Triggers a build when we receive a GitHub post-commit webhook.
  *
  * @author Kohsuke Kawaguchi
  */
-public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements GitHubTrigger {
+public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implements GitHubTrigger {
 
-    private static Set<GHEvent> GITHUB_EVENTS = [GHEvent.CREATE, GHEvent.DELETE] as Set;
+    private static Set<GHEvent> GITHUB_EVENTS = [GHEvent.PULL_REQUEST] as Set;
 
     @DataBoundConstructor
-    public BranchesTrigger() {
+    public PullRequestsTrigger() {
     }
 
     /**
@@ -67,7 +67,7 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
     public void onPost(String payload) {
         LOGGER.log(Level.INFO, "onPost String payload: ${payload}")
         String name = " #"+job.getNextBuildNumber();
-        BranchesCause cause = new BranchesCause(payload.getSender())
+        PullRequestsCause cause = new PullRequestsCause(payload)
         if (job.scheduleBuild(cause)) {
             LOGGER.info("SCM branch changes detected in "+ job.getName()+". Triggering "+name);
         } else {
@@ -80,11 +80,11 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
         String name = " #"+job.getNextBuildNumber();
         def sender = payload.getSenderDetails()
         LOGGER.log(Level.INFO, "onPost Payload Sender: ${sender}")
-        BranchesCause cause = new BranchesCause(sender)
+        PullRequestsCause cause = new PullRequestsCause(payload.getJSON())
         if (job.scheduleBuild(cause)) {
-            LOGGER.info("SCM branch changes detected in "+ job.getName()+". Triggering "+name);
+            LOGGER.info("SCM pull request changes detected in "+ job.getName()+". Triggering "+name);
         } else {
-            LOGGER.info("SCM branch changes detected in "+ job.getName()+". Job is already in the queue");
+            LOGGER.info("SCM pull request changes detected in "+ job.getName()+". Job is already in the queue");
         }
     }
 
@@ -155,7 +155,7 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
         LOGGER.log(Level.INFO, "Adding GitHub branch webhook for "+repo.toString());
         try {
             GHHook hook = repo.createWebHook(new URL(url.toExternalForm()), GITHUB_EVENTS);
-            LOGGER.log(Level.INFO, "Added GitHub branches webhook for "+repo.toString()+" "+hook.toString());
+            LOGGER.log(Level.INFO, "Added GitHub pull requests webhook for "+repo.toString()+" "+hook.toString());
             return true;
         } catch (IOException e) {
             throw new GHException("Failed to update jenkins hooks", e);
@@ -199,7 +199,7 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
 
         @Override
         public String getDisplayName() {
-            return "Build when a branch is created or deleted in GitHub (using web-hooks)";
+            return "Build when a pull request is opened/closed/syncronized in GitHub (using web-hooks)";
         }
 
         /**
@@ -216,7 +216,7 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
                     continue;
                 }
 
-                BranchesTrigger trigger = job.getTrigger(BranchesTrigger.class);
+                PullRequestsTrigger trigger = job.getTrigger(PullRequestsTrigger.class);
                 if (trigger!=null) {
                     LOGGER.log(Level.FINE, "Calling registerHooks() for {0}", job.getFullName());
                     trigger.registerHooks();
@@ -241,5 +241,5 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
         }
     }
 
-    private static final Logger LOGGER = Logger.getLogger(BranchesTrigger.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(PullRequestsTrigger.class.getName());
 }

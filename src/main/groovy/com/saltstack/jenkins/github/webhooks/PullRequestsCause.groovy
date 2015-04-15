@@ -11,43 +11,47 @@ import java.util.logging.Logger;
 import org.jenkinsci.plugins.buildtriggerbadge.provider.BuildTriggerBadgeProvider;
 
 
-public class BranchesCause extends UserIdCause {
+public class PullRequestsCause extends UserIdCause {
     /**
      * The name of the user who triggered the event from GitHub.
      */
-    private HashMap sender_payload;
+    private HashMap payload;
 
-    public BranchesCause(HashMap sender_payload) {
+    public PullRequestsCause(HashMap payload) {
         super()
-        LOGGER.log(Level.INFO, "Instantiating branches cause with ${sender_payload} of type ${sender_payload.getClass()}")
-        this.sender_payload = sender_payload;
+        LOGGER.log(Level.FINE, "Instantiating branches cause with ${payload} of type ${payload.getClass()}")
+        this.payload = payload;
     }
 
     @Override
     public String getUserId() {
-        return this.sender_payload.id.toString()
+        return this.payload.sender.id.toString()
     }
 
     @Override
     public String getUserName() {
-        return this.sender_payload.login
+        return this.payload.sender.login
     }
 
     @Override
     public String getShortDescription() {
-        return "Started by GitHub branches create/delete webhook triggered by " + getUserName();
+        return "Started by GitHub ${getAction()} pull requests webhook event triggered by " + getUserName();
+    }
+
+    public String getAction() {
+        return this.payload.action
     }
 
     @Extension
-    public static class BranchesCauseBadgeProvider extends BuildTriggerBadgeProvider {
+    public static class PullRequestsCauseBadgeProvider extends BuildTriggerBadgeProvider {
         @Override
         public String provideIcon(Cause cause) {
-            if (cause instanceof BranchesCause) {
+            if (cause instanceof PullRequestsCause) {
                 return hudson.Functions.getResourcePath() + '/plugin/buildtriggerbadge/images/github-push-cause.png';
             }
             return null;
         }
     }
 
-    private static final Logger LOGGER = Logger.getLogger(BranchesCause.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(PullRequestsCause.class.getName());
 }
