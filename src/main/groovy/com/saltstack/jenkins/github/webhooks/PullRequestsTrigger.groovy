@@ -186,7 +186,6 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
     @Extension
     public static class DescriptorImpl extends TriggerDescriptor {
         private static final Logger LOGGER = Logger.getLogger(DescriptorImpl.class.getName());
-        private transient final SequentialExecutionQueue queue = new SequentialExecutionQueue(MasterComputer.threadPoolForRemoting);
 
         public DescriptorImpl() {
             load();
@@ -207,33 +206,6 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
          */
         public static URL getHookUrl() throws MalformedURLException {
             return new URL(Hudson.getInstance().getRootUrl()+WebHook.get().getUrlName()+'/');
-        }
-
-        public FormValidation doReRegister() {
-            int triggered = 0;
-            for (AbstractProject<?,?> job : getJenkinsInstance().getAllItems(AbstractProject.class)) {
-                if (!job.isBuildable()) {
-                    continue;
-                }
-
-                PullRequestsTrigger trigger = job.getTrigger(PullRequestsTrigger.class);
-                if (trigger!=null) {
-                    LOGGER.log(Level.FINE, "Calling registerHooks() for {0}", job.getFullName());
-                    trigger.registerHooks();
-                    triggered++;
-                }
-            }
-
-            LOGGER.log(Level.INFO, "Called registerHooks() for {0} jobs", triggered);
-            return FormValidation.ok("Called re-register hooks for " + triggered + " jobs");
-        }
-
-        public static final Jenkins getJenkinsInstance() throws IllegalStateException {
-            Jenkins instance = Jenkins.getInstance();
-            if (instance == null) {
-                throw new IllegalStateException("Jenkins has not been started, or was already shut down");
-            }
-            return instance;
         }
 
         public static DescriptorImpl get() {
