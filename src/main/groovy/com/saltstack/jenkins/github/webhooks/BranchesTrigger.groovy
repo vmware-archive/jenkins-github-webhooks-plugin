@@ -152,10 +152,15 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
     }
 
     private boolean createJenkinsHook(GHRepository repo, URL url) {
-        LOGGER.log(Level.INFO, "Adding GitHub branch webhook for "+repo.toString());
+        LOGGER.log(Level.INFO, "Adding GitHub branch webhook for ${repo.toString()}");
+        GHHook existing_hook = getExistingHook(repo, url)
+        if ( existing_hook != null ) {
+            LOGGER.log(Level.INFO, "GitHub branches webhook for ${repo.toString()} ${hook.toString()} already exists");
+            return true;
+        }
         try {
             GHHook hook = repo.createWebHook(new URL(url.toExternalForm()), GITHUB_EVENTS);
-            LOGGER.log(Level.INFO, "Added GitHub branches webhook for "+repo.toString()+" "+hook.toString());
+            LOGGER.log(Level.INFO, "Added GitHub branches webhook for ${repo.toString()} ${hook.toString()}");
             return true;
         } catch (IOException e) {
             throw new GHException("Failed to update jenkins hooks", e);
@@ -167,6 +172,17 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
 
     private void removeJenkinsHook(GHRepository repo, URL url) {
         try {
+            GHHook existing_hook = getExistingHook(repo, url)
+            if ( existing_hook != null ) {
+                existing_hook.delete();
+            }
+        } catch (IOException e) {
+            throw new GHException("Failed to update post-commit web hooks", e);
+        }
+    }
+
+    private getExistingHook(GHRepository repo, URL url) {
+        try {
             String urlExternalForm = url.toExternalForm();
             for (GHHook h : repo.getHooks()) {
                 if ( h.getName() != 'web' ) {
@@ -174,13 +190,14 @@ public class BranchesTrigger extends Trigger<AbstractProject<?,?>> implements Gi
                 }
                 if (h.getConfig().get("url").equals(urlExternalForm)) {
                     if ( h.getEvents() as Set == GITHUB_EVENTS ) {
-                        h.delete();
+                        return h;
                     }
                 }
             }
         } catch (IOException e) {
             throw new GHException("Failed to update post-commit web hooks", e);
         }
+        return null
     }
 
     @Extension
