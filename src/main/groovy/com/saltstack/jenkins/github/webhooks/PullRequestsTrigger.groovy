@@ -69,9 +69,9 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
         String name = " #"+job.getNextBuildNumber();
         PullRequestsCause cause = new PullRequestsCause(payload)
         if (job.scheduleBuild(cause)) {
-            LOGGER.info("SCM branch changes detected in "+ job.getName()+". Triggering "+name);
+            LOGGER.info("SCM pull request changes detected in "+ job.getName()+". Triggering "+name);
         } else {
-            LOGGER.info("SCM branch changes detected in "+ job.getName()+". Job is already in the queue");
+            LOGGER.info("SCM pull request changes detected in "+ job.getName()+". Job is already in the queue");
         }
     }
 
@@ -120,7 +120,7 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
     public void registerHooks() {
         final Collection<GitHubRepositoryName> names = GitHubRepositoryNameContributor.parseAssociatedNames(job);
 
-        LOGGER.log(Level.INFO, "Adding GitHub branch webhooks for {0}", names);
+        LOGGER.log(Level.INFO, "Adding GitHub pull request webhooks for {0}", names);
 
         for (GitHubRepositoryName name : names) {
             for (GHRepository repo : name.resolve()) {
@@ -129,7 +129,7 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
                         break;
                     }
                 } catch (Throwable e) {
-                    LOGGER.log(Level.WARNING, "Failed to add GitHub branch webhook for "+name, e);
+                    LOGGER.log(Level.WARNING, "Failed to add GitHub pull request webhook for "+name, e);
                 }
             }
         }
@@ -145,17 +145,22 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
                         break;
                     }
                 } catch (Throwable e) {
-                    LOGGER.log(Level.WARNING, "Failed to add GitHub branch webhook for "+name, e);
+                    LOGGER.log(Level.WARNING, "Failed to add GitHub pull request webhook for "+name, e);
                 }
             }
         }
     }
 
     private boolean createJenkinsHook(GHRepository repo, URL url) {
-        LOGGER.log(Level.INFO, "Adding GitHub branch webhook for "+repo.toString());
+        LOGGER.log(Level.INFO, "Adding GitHub pull request webhook for ${repo.toString()}");
+        GHHook existing_hook = getExistingHook(repo, url)
+        if ( existing_hook != null ) {
+            LOGGER.log(Level.INFO, "GitHub pull request webhook for ${repo.toString()} ${hook.toString()} already exists");
+            return true;
+        }
         try {
             GHHook hook = repo.createWebHook(new URL(url.toExternalForm()), GITHUB_EVENTS);
-            LOGGER.log(Level.INFO, "Added GitHub pull requests webhook for "+repo.toString()+" "+hook.toString());
+            LOGGER.log(Level.INFO, "Added GitHub pull request webhook for ${repo.toString()} ${hook.toString()}");
             return true;
         } catch (IOException e) {
             throw new GHException("Failed to update jenkins hooks", e);
@@ -167,6 +172,17 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
 
     private void removeJenkinsHook(GHRepository repo, URL url) {
         try {
+            GHHook existing_hook = getExistingHook(repo, url)
+            if ( existing_hook != null ) {
+                existing_hook.delete();
+            }
+        } catch (IOException e) {
+            throw new GHException("Failed to update post-commit web hooks", e);
+        }
+    }
+
+    private getExistingHook(GHRepository repo, URL url) {
+        try {
             String urlExternalForm = url.toExternalForm();
             for (GHHook h : repo.getHooks()) {
                 if ( h.getName() != 'web' ) {
@@ -174,13 +190,14 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
                 }
                 if (h.getConfig().get("url").equals(urlExternalForm)) {
                     if ( h.getEvents() as Set == GITHUB_EVENTS ) {
-                        h.delete();
+                        return h;
                     }
                 }
             }
         } catch (IOException e) {
             throw new GHException("Failed to update post-commit web hooks", e);
         }
+        return null
     }
 
     @Extension
