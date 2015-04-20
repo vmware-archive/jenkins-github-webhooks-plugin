@@ -155,7 +155,7 @@ public class PullRequestsTrigger extends Trigger<AbstractProject<?,?>> implement
         LOGGER.log(Level.INFO, "Adding GitHub pull request webhook for ${repo.toString()}");
         GHHook existing_hook = getExistingHook(repo, url)
         if ( existing_hook != null ) {
-            LOGGER.log(Level.INFO, "GitHub pull request webhook for ${repo.toString()} ${hook.toString()} already exists");
+            LOGGER.log(Level.INFO, "GitHub pull request webhook for ${repo.toString()} ${existing_hook.toString()} already exists");
             return true;
         }
         try {
